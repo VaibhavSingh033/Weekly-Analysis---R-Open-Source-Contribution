@@ -4,10 +4,111 @@ author: "Vaibhav"
 date: "5/16/2019"
 output: html_document
 ---
+```{r}
+library(tidyverse)
+library(countrycode)
+library(ggplot2)
+library(ggalt)
+library(ggthemes)
+library(lubridate)
+library(viridis)
+library(ggpubr)
+library(CoordinateCleaner)
+```
+
+
+
 
 ```{r}
-nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv")
-nobel_winner_all_pubs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winner_all_pubs.csv")
+nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv") %>% 
+  mutate_all(., tolower) %>%
+  mutate(prize_year = as.integer(prize_year)) %>%
+  mutate(birth_country = ifelse(grepl('\\(', birth_country), str_extract(birth_country, "(?<=\\().*?(?=\\))"), birth_country),
+         death_country = ifelse(grepl('\\(', death_country), str_extract(death_country, "(?<=\\().*?(?=\\))"), death_country)) %>%
+  mutate(birth_country = case_when(birth_country == "scotland" ~ "united kingdom",
+                                   birth_country == "northern ireland" ~ "united kingdom",
+                                   grepl("czech", birth_country) ~ "czechia",
+                                   birth_country == "east_germany" ~ "germany",
+                                   TRUE ~ birth_country),
+         death_country = case_when(death_country == "scotland" ~ "united kingdom",
+                                   death_country == "northern ireland" ~ "united kingdom",
+                                   grepl("czech", death_country) ~ "czechia",
+                                   death_country == "east_germany" ~ "germany",
+                                   TRUE ~ death_country)) %>%
+  select(prize_year, category, birth_date, birth_country, gender, organization_name, organization_country, death_country)
 
+
+nobel_winners_cntry <- nobel_winners %>%
+  count(birth_country) %>%
+  filter(!is.na(birth_country)) %>%
+  mutate(iso3 = countrycode(birth_country, "country.name", "iso3c")) %>% arrange(desc(n))
+```
+
+```{r}
+ nobel_winners_cntry_coord <- nobel_winners_cntry %>%
+  left_join(codes)
+ 
+ 
+ world <- map_data("world")
+ world <- world[world$region != "Antarctica", ]
+```
+
+```{r}
+ names_dif <- anti_join(nobel_winners_cntry_coord, world, by = c("country_name_en" = "region"))
+
+ nobel_winners_cntry_coord2 <- nobel_winners_cntry_coord %>%
+   mutate(country_name_en = recode(country_name_en, 
+                                   "United Kingdom" = "UK",
+                                   "United States" = "USA",
+                                   "Bosnia & Herzegovina" = "Bosnia and Herzegovina",
+                                   "Czechia" = "Czech Republic",
+                                   "Trinidad & Tobago" = "Trinidad",
+                                   "Myanmar (Burma)" = "Myanmar",
+                                   "St. Lucia" = "Saint Lucia"))
+```
+
+
+```{r}
+ggplot() +
+   geom_cartogram(
+     data = world, map = world,
+     aes(x = long, y = lat, map_id = region),
+     color = "#113c7a", fill = "#113c7a", size = 0.125
+   ) +
+   geom_point(
+     data = nobel_winners_cntry_coord, aes(capital.lon, capital.lat, size = n), fill = "#ffe923",
+     shape = 21, alpha = 0.8, stroke = 0.25, color = "#ffe923"
+   ) +
+   coord_proj("+proj=robin") +
+   scale_size_area(name = "Number of Nobel Laureates", breaks = c(10, 50, 100, 200), max_size = 30, labels = scales::comma) +
+   labs(
+     x = NULL, y = NULL,
+     title = "Nobel Winners by country",
+     subtitle = "Size of bubble indicates number of Nobel lauretes",
+     caption = "Source: Kaggle"
+   ) +
+   theme_map(base_family = "Britannic Bold") +
+   theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+   theme(plot.subtitle = element_text(hjust = 0.5, size = 15)) +
+   theme(plot.caption = element_text(size = 15)) +
+   theme(legend.position = "bottom") +
+   theme(legend.title = element_text(size = 18)) +
+   theme(legend.text = element_text(size = 18)) 
+```
+
+
+```{r}
+codes <- codelist %>%
+  select(iso3c, country.name.en, region, continent) %>%
+  janitor::clean_names() %>%
+  filter(!is.na(continent)) %>%
+  filter(!is.na(region)) %>%
+  rename(iso3 = iso3c) %>%
+  left_join(CoordinateCleaner::countryref %>% select(iso3, capital.lon, capital.lat)) %>%
+  distinct() %>%
+  filter(!is.na(capital.lon)) %>%
+  filter(!is.na(capital.lat)) 
 
 ```
+
+Age at the time of Winning the award
