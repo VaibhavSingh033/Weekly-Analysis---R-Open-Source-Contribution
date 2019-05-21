@@ -4,13 +4,138 @@ author: "Vaibhav"
 date: "5/21/2019"
 output: html_document
 ---
+```{r}
+library(janitor)
+library(lubridate)
+library(tidyverse)
+library(countrycode)
+library(ggplot2)
+library(ggalt)
+library(ggthemes)
+library(viridis)
+library(ggpubr)
+library(CoordinateCleaner)
+```
+
+
 
 ```{r}
 
-coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv")
+coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv") %>% clean_names()
 
-mismanaged_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-mismanaged-plastic-waste-vs-gdp-per-capita.csv")
+mismanaged_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-mismanaged-plastic-waste-vs-gdp-per-capita.csv") %>% clean_names()
 
-waste_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-plastic-waste-vs-gdp-per-capita.csv")
+waste_vs_gdp <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/per-capita-plastic-waste-vs-gdp-per-capita.csv") %>% clean_names()
+```
+
+Exploring the dataset
+
+```{r}
+
+coast_vs_waste_final <- coast_vs_waste %>%
+  filter(!is.na(entity)) %>%
+  mutate(iso3 = countrycode(entity, "country.name", "iso3c"))
+
+codes <- codelist %>%
+  select(iso3c, country.name.en, region, continent) %>%
+  janitor::clean_names() %>%
+  filter(!is.na(continent)) %>%
+  filter(!is.na(region)) %>%
+  rename(iso3 = iso3c) %>%
+  left_join(CoordinateCleaner::countryref %>% select(iso3, capital.lon, capital.lat)) %>%
+  distinct() %>%
+  filter(!is.na(capital.lon)) %>%
+  filter(!is.na(capital.lat))
+
+coast_vs_waste_final <- coast_vs_waste_final %>%
+  left_join(codes)
+```
+
+Plotting mismanaged plastic pollution on world map
+
+
+```{r}
+world <- map_data("world")
+world <- world[world$region != "Antarctica", ]
+names_dif <- anti_join(coast_vs_waste_final, world, by = c("country_name_en" = "region"))
+
+ggplot() +
+  geom_cartogram(
+    data = world, map = world,
+    aes(x = long, y = lat, map_id = region),
+    color = "#ffe923", fill = "#113c7a", size = 0.125
+  ) +
+  geom_point(
+    data = coast_vs_waste_final, aes(capital.lon, capital.lat, size = mismanaged_plastic_waste_tonnes), fill = "#c11f42",
+    shape = 21, alpha = 0.8, stroke = 0.25, color = "#113c7a"
+  ) +
+  coord_proj("+proj=robin") +
+  scale_size_area(name = "Global Plastic Waste", breaks = c(10, 50, 100, 200), max_size = 30, labels = scales::comma) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Global Plastic Waste by country",
+    subtitle = "Size of bubble indicates extent of mismanaged Plastic waste",
+    caption = "Source: National Geographic"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  theme(plot.subtitle = element_text(hjust = 0.5, size = 15)) +
+  theme(plot.caption = element_text(size = 15)) +
+  theme(legend.position = "none") +
+  theme(legend.title = element_text(size = 18)) +
+  theme(legend.text = element_text(size = 18))
+```
+
+Plotting Coastal population Vs Total population on world map
+
+```{r}
+coast_vs_waste_final_plot <- coast_vs_waste_final %>% mutate(coast_by_total = coastal_population / total_population_gapminder * 100)
+
+ggplot() +
+  geom_cartogram(
+    data = world, map = world,
+    aes(x = long, y = lat, map_id = region),
+    color = "#ffe923", fill = "#113c7a", size = 0.125
+  ) +
+  geom_point(
+    data = coast_vs_waste_final_plot, aes(capital.lon, capital.lat, size = coast_by_total), fill = "#c11f42",
+    shape = 21, alpha = 0.8, stroke = 0.25, color = "#113c7a"
+  ) +
+  coord_proj("+proj=robin") +
+  scale_size_area(name = "Global Plastic Waste", breaks = c(10, 20, 50, 70, 100), max_size = 10, labels = scales::comma) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Global Plastic Waste by country",
+    subtitle = "Size of bubble indicates extent of Coastal Population Vs Total Population",
+    caption = "Source: National Geographic"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5, size = 25)) +
+  theme(plot.subtitle = element_text(hjust = 0.5, size = 15)) +
+  theme(plot.caption = element_text(size = 15)) +
+  theme(legend.position = "none") +
+  theme(legend.title = element_text(size = 18)) +
+  theme(legend.text = element_text(size = 18))
+```
+
+Mismanaged Vs GDP
+
+```{r}
 
 ```
+
+
+```{r}
+breaks <- c(0,0.05,1,5,50,100)
+mismanaged_vs_gdp %>%mutate(total_population_gapminder=total_population_gapminder/10^7) %>% 
+filter(year == 2010) %>%
+ggplot(aes(y=per_capita_mismanaged_plastic_waste_kilograms_per_person_per_day,     
+           x=gdp_per_capita_ppp_constant_2011_international_rate, color = total_population_gapminder)) +  geom_point() +  scale_x_log10() + scale_colour_gradient2(low = "black", mid = "yellow", high = "red", midpoint = 0.003, breaks = breaks) +
+geom_text(aes(label = entity), vjust = 1, hjust = 1, check_overlap = TRUE)+
+  labs(title="GDP Vs Mismanaged Waste",x="GDP Per Captita", y="Mismanaged Waste")+
+  theme_classic()
+```
+
+
+```{r}
+
+```
+
