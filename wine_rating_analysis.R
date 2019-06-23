@@ -39,7 +39,6 @@ ggplot(wine_ratings, aes(price, points)) +
 summary(lm(points ~ log2(price), wine_ratings))
 
 
-Every time the price doubles, the expected number of points goes up by 2.
 
 
 library(broom)
@@ -48,6 +47,7 @@ model <- wine_ratings %>%
   mutate(country = fct_relevel(fct_lump(country, 7), "US"),
          taster_name = fct_relevel(fct_lump(taster_name, 6), "Missing")) %>%
   lm(points ~ log2(price) + country + year + taster_name, data = .)
+
 model %>%
   tidy(conf.int = TRUE) %>%
   filter(term != "(Intercept)") %>%
