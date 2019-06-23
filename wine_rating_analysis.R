@@ -10,9 +10,7 @@ dim(wine_ratings)
 #Initial Analysis
 
 
-wine_ratings %>% count(country) %>% 
-  fct_reorder(country,n)
-
+wine_ratings %>% count(country, sort = TRUE) %>% fct_lump(8,"Others") 
 
 ggplot(wine_ratings, aes(country))+geom_bar()
                          
