@@ -7,7 +7,36 @@ output: html_document
 
 ```{r}
 media_franchises <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-02/media_franchises.csv")
+
+theme_set(theme_minimal())
+
 ```
+
+Exploring data 
+```{r}
+library(skimr)
+media_franchises %>% 
+  skim()
+```
+
+
+Which are the highest revenue generating category
+```{r}
+(media_franchises) %>%  group_by(revenue_category) %>% 
+  summarise(sum(revenue), mean(revenue)) %>% 
+  arrange(desc(`sum(revenue)`)) %>%
+  mutate(revenue_category= fct_reorder(revenue_category,`sum(revenue)`)) %>% 
+  ggplot(aes(revenue_category,`sum(revenue)`, fill=revenue_category))+
+  geom_col(show.legend = FALSE)+coord_flip()+
+  labs(title="Highest revenue by category", x="", y="")
+```
+
+
+```{r}
+
+```
+
+
 
 
 
