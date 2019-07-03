@@ -31,12 +31,46 @@ Which are the highest revenue generating category
   labs(title="Highest revenue by category", x="", y="")
 ```
 
-
+Do for some franchis movies have been more profitable than Merchandising
 ```{r}
+library(gameofthrones)
+library(ggchicklet)
+library(hrbrthemes)
+library(tidyverse)
+library(glue)
+library(drlib)
+
+
+media_franchises %>% distinct() %>% 
+  group_by(revenue_category,franchise) %>% 
+  summarise(s=sum(revenue)) %>% 
+  top_n(5) %>% 
+  ungroup(  )%>%
+  mutate(franchise=reorder_within(franchise,s, revenue_category)) %>% 
+  ggplot(aes(franchise,s, fill=revenue_category))+
+   geom_chicklet(width = 0.75, color = NA, radius = grid::unit(4, "pt")) +
+  scale_fill_got_d(option = "Daenerys")+coord_flip()+
+  facet_wrap(~revenue_category, scales = "free_y")+
+  scale_x_reordered()+
+  labs(title="Category wise top earners", x="",y="")+
+  theme_ft_rc() +
+  theme(legend.position = "none",
+    plot.title = element_text(color = "#c90a3d", hjust = 0.5, size = 25),
+     strip.background =element_rect(fill="#b5676c"),
+  strip.text = element_text(colour = 'white'))
 
 ```
 
 
+```{r}
 
-
+library(gridExtra)
+ media_franchises %>% 
+  group_by(year_created, revenue_category) %>% 
+  summarise(s=sum(revenue)) %>% 
+  ggplot(aes(year_created, s, color=revenue_category))+
+           facet_wrap(~revenue_category)+
+  geom_line(show.legend = FALSE)+
+  labs(title="", x="", y="")
+```
 
