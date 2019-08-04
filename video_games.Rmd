@@ -1,0 +1,150 @@
+---
+title: "Video Games"
+author: "Vaibhav"
+date: "8/1/2019"
+output: html_document
+---
+
+
+```{r}
+library(lubridate)
+library(tidyverse)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggforce)
+library(cowplot)
+library(stringr)
+
+video_games <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-30/video_games.csv")
+
+theme_set(theme_classic())
+
+```
+
+Exploring Top rated games by publisher
+```{r}
+
+top_publisher <- video_games %>% 
+  count(publisher, sort=TRUE) %>% 
+  top_n(8) %>% 
+  filter(!is.na(publisher))
+
+video_games %>% inner_join(top_publisher) %>% 
+  group_by(publisher, game) %>%
+  summarise(avg_score = mean(metascore, na.rm = TRUE)) %>% 
+  arrange(desc(avg_score))  %>% 
+  top_n(10) %>% 
+  ungroup %>% 
+  mutate(publisher=fct_reorder(publisher,-avg_score,sum),
+         game=fct_reorder(game,avg_score,sum)) %>% 
+  ggplot(aes(game, avg_score, fill=publisher))+
+  facet_wrap(~publisher, scales = "free_y")+
+  geom_col(show.legend = FALSE)+
+  coord_flip()+
+  labs(title="Top Rated Games by top publisher", x= "",y="")
+
+```
+
+Are Games getting bettter & Expensive with Time
+```{r}
+
+video_games %>% mutate(release_date=mdy(release_date),
+                       year_published= year(release_date)) %>%
+  group_by(year_published) %>% na.omit() %>%
+  summarise(price=mean(price, na.rm = TRUE),
+            score=mean(metascore, na.rm = TRUE)) %>%
+ggplot(aes((year_published), score, color=price))+
+  geom_point(size=3) +
+  geom_smooth(se=FALSE, fullrange=TRUE)+
+  scale_color_gradient(low = "green", high = "red")+
+  theme(panel.grid = element_blank(),
+  axis.text.x = element_text(angle = 90, hjust = 1))  
+
+
+
+video_games %>% mutate(release_date=mdy(release_date),
+                       year_published= year(release_date)) %>%
+  group_by(year_published) %>% na.omit() %>%
+ggplot(aes((year_published), metascore, color=price))+
+  geom_point(size=3) +
+  geom_smooth(se=FALSE, fullrange=TRUE)+
+  scale_color_gradient(low = "green", high = "red")+
+  theme(panel.grid = element_blank(),
+  axis.text.x = element_text(angle = 90, hjust = 1))  
+```
+
+```{r}
+## Recoding video_games$owners into video_games$owners_rec
+video_games$owners_rec <- fct_recode(video_games$owners,
+               "Greater than 5 million" = "10,000,000 .. 20,000,000",
+               "Greater than 5 million" = "5,000,000 .. 10,000,000",
+               "Greater than 1 million" = "2,000,000 .. 5,000,000",
+               "Greater than 1 million" = "1,000,000 .. 2,000,000",
+               "50k -1 Million" = "500,000 .. 1,000,000",
+               "50k -1 Million" = "200,000 .. 500,000",
+               "50k -1 Million" = "100,000 .. 200,000",
+               "50k -1 Million" = "50,000 .. 100,000",
+               "50k -1 Million" = "20,000 .. 50,000",
+               "Less than 20k" = "0 .. 20,000",
+               "Greater than 5 million" = "50,000,000 .. 100,000,000",
+               "Greater than 5 million" = "100,000,000 .. 200,000,000",
+               "Greater than 5 million" = "20,000,000 .. 50,000,000")
+
+## Reordering video_games$owners_rec
+video_games$owners_rec <- factor(video_games$owners_rec, levels=c("Less than 20k", "50k -1 Million", "Greater than 1 million", "Greater than 5 million"))
+
+
+p<- video_games %>% mutate(release_date=mdy(release_date),
+                       year_published= year(release_date),price=replace_na(price,"free"),
+                       type=ifelse(price=="free","free","Paid"),
+                       price=ifelse(price=="free",NA,as.numeric(price))) %>% 
+ggplot(aes(x=year_published, y=metascore))+
+ geom_jitter(aes(color=type), size=2, alpha = 0.25, width = 0.15)+
+  #geom_mark_circle(x=10,y=94, color='grey50', label.fill = NA, expand = unit(4, "mm"))+
+  scale_y_continuous(limits=c(20,100))+
+  facet_wrap(~owners_rec)+
+  theme(
+    title=element_text(face="bold"),
+    plot.subtitle=element_text(face="italic"),
+    axis.title=element_text(face="bold"),
+    axis.text.y=element_text(size=10)
+  )+
+ # guides(color=FALSE)+
+  labs(
+    title="Are Paid Games highly rated than Free | Are more popular game highly rated than less popular ones?",
+    subtitle="Bucketed by Count of players",
+    x="",
+    y='METASCORE',
+    color="Type of Games"
+  )
+
+#p + geom_text(data = ann_text,label = "DOTA 2")
+
+arrows <- tibble(
+  x1 = 2013 #Avg Overall
+         ,
+  x2 = c(2013.8),
+  y1 = c(90.3
+         ),
+  y2=c(99
+         )
+)
+
+arrows1 <- data.frame(arrows, year_published = 2014,metascore = 100,lab = "Text",type="free",
+                       owners_rec = factor("Greater than 5 million",levels=c("Less than 20k", "50k -1 Million", "Greater than 1 million", "Greater than 5 million")))
+
+ #add arrows
+ ann_text <- data.frame(year_published = 2014.5,metascore = 99,lab = "Text",type="free",
+                        owners_rec = factor("Greater than 5 million",levels=c("Less than 20k", "50k -1 Million", "Greater than 1 million", "Greater than 5 million")))
+
+
+p1<-p + geom_curve(data = arrows1, aes(x = x1, y = y1, xend = x2, yend = y2),
+                    arrow = arrow(length = unit(0.07, "inch")), size = 0.1,
+                    color = "red", curvature = -0.25)+
+  geom_text(data = ann_text,label = "DOTA 2", color="black")
+
+p1
+```
+
