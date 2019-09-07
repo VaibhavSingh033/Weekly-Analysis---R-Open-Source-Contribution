@@ -1,0 +1,114 @@
+---
+title: "Bob Ross Painting"
+author: "Vaibhav"
+date: "9/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+bob_ross <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-06/bob-ross.csv")
+```
+
+```{r}
+head(bob_ross)
+
+bob_ross_gathered <- bob_ross %>%
+  janitor::clean_names() %>%
+  gather(element, present, -episode, -title) %>%
+  filter(present == 1) %>%
+  mutate(title = str_to_title(str_remove_all(title, '"')),
+         element = str_to_title(str_replace(element, "_", " "))) %>%
+  select(-present) %>%
+  extract(episode, c("season", "episode_number"), "S(.*)E(.*)", convert = TRUE, remove = FALSE) %>%
+  arrange(season, episode_number)
+
+```
+
+#Which element occurs most in Bob Ross Painting
+
+```{r}
+library(drlib)
+bob_ross_gathered %>% 
+  mutate(element=ifelse(element=="tree","trees",element)) %>% 
+  count(element,season, name = "count", sort=TRUE) %>%
+  group_by(season) %>% 
+  top_n(5,count) %>%
+  ungroup() %>% 
+  mutate(element = reorder_within(element, count, season)) %>%
+  ggplot(aes(element, count, fill=element))+
+  geom_col(show.legend = FALSE)+
+  facet_wrap(~season, scales="free")+
+  coord_flip()+
+  scale_x_reordered() +
+  labs(title="Element which occurred the most in each season!")+
+  theme_minimal()
+```
+
+
+
+```{r}
+bob_ross_gathered %>%
+  count(element, sort = TRUE) %>%
+  head(25) %>%
+  mutate(element = fct_reorder(element, n)) %>%
+  ggplot(aes(element, n)) +
+  geom_col() +
+  coord_flip()
+```
+
+
+#What are the most "crowded" paintings, with the most elements in them?
+```{r}
+bob_ross_gathered %>%
+  add_count(episode) %>%
+  arrange(desc(n))
+```
+
+
+```{r}
+by_season_element <- bob_ross_gathered %>%
+  filter(!element %in% c("Tree", "Trees")) %>%
+  group_by(season) %>%
+  mutate(number_episodes = n_distinct(episode)) %>%
+  count(season, element, number_episodes, sort = TRUE) %>%
+  mutate(percent_included = n / number_episodes) %>%
+  group_by(element) %>%
+  mutate(element_total = sum(n)) %>%
+  ungroup()
+
+by_season_element %>%
+  filter(element_total >= 50) %>%
+  ggplot(aes(season, percent_included, color = element)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  expand_limits(y = 0) +
+  facet_wrap(~ element)
+```
+
+
+```{r}
+library(widyr)
+correlations <- bob_ross_gathered %>%
+  add_count(element) %>%
+  filter(n >= 5) %>%
+  pairwise_cor(element, episode, sort = TRUE)
+
+correlations %>%
+  filter(item1 == "River") %>%
+  mutate(item2 = fct_reorder(item2, correlation)) %>%
+  ggplot(aes(item2, correlation)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "What tends to appear with a river?",
+       subtitle = "Among elements that appeared in at least 10 paintings")
+
+```
+
+
+```{r}
+iris %>% 
+  mutate(n=n_distinct(Species)) %>% 
+  count(Species,n)
+
+```
+
