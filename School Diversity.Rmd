@@ -1,0 +1,116 @@
+---
+title: "School Diversity"
+author: "Vaibhav"
+date: "9/28/2019"
+output: html_document
+---
+
+#Reading the data
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(geofacet)
+school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
+
+```
+
+
+Which Schools have shown maximum improvement
+```{r}
+library(scales)
+library(geofacet)
+library(showtext)
+library (waffle)
+library (ggdark)
+library(ggchicklet)
+library(hrbrthemes)
+font_add_google("Roboto")
+showtext_auto()
+
+school_diversity %>% 
+  ## Recoding school_diversity$SCHOOL_YEAR into school_diversity$SCHOOL_YEAR_rec
+  mutate(SCHOOL_YEAR=recode(SCHOOL_YEAR,"1994-1995" = "1994","2016-2017" = "2017")) %>% 
+  count(ST,SCHOOL_YEAR,diverse) %>% 
+  pivot_wider(names_from = diverse, values_from = n) %>% 
+  ungroup() %>% 
+  mutate_all(funs(replace_na(.,0))) %>%
+  mutate(prop = Diverse/(Diverse+Undiverse+`Extremely undiverse`)) %>% 
+  group_by(ST) %>% 
+  arrange(desc(prop)) %>%
+  ggplot(aes(SCHOOL_YEAR,prop,fill = ST))+
+  geom_col(show.legend=FALSE)+
+  facet_geo(~ST, scales = "free_x")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 5L))+
+  theme_dark()+
+  labs(x="",y="", title="Change of Ethnic diversity State Wise (2017 Vs 1994)")+
+  dark_mode(theme_minimal()) +
+  theme(   text = element_text( color = "white"),   
+           plot.title = element_text(family = "Viner Hand ITC",hjust = .5, size = 22, face = "bold"),
+           plot.caption = element_text(hjust = 1, size = 12, vjust = .5),
+           axis.title.y = element_text(hjust=1, size = 8, face = "bold"),
+           axis.text.y=element_text(size=6, face = "bold"),
+           axis.text.x=element_text(size=8),
+           strip.text = element_text(size = 10),
+           legend.position = c(0.92,0.67),
+           legend.text = element_text(s2ize=12),
+           legend.key.size = unit(0.5, "cm")
+  ) +
+  theme(axis.text.x = element_text(angle = 0))
+
+```
+
+
+```{r}
+
+school_diversity %>% 
+  count(ST,SCHOOL_YEAR,diverse) %>% 
+  pivot_wider(names_from = diverse, values_from = n) %>% 
+  ungroup() %>% 
+  mutate(prop = Diverse/(Diverse+Undiverse+`Extremely undiverse`)) %>% 
+  group_by(ST) %>% 
+  arrange(desc(prop)) %>% 
+  ggplot(aes(x= SCHOOL_YEAR, y= prop, fill=ST))+
+  geom_hline(yintercept = 0.1, color="white")+
+  geom_hline(yintercept = -0.1, color="white")+
+  geom_col(show.legend = FALSE)+
+  theme_void()+
+  scale_y_continuous(labels= scales::percent_format(accuracy=1L), breaks=c(-0.1, 0,0.1))+
+  geom_hline(yintercept = 0)+
+  facet_wrap(~ST)
+
+```
+
+
+```{r}
+tibble(
+  parts = factor(rep(month.abb[1:3], 3), levels=month.abb[1:3]),
+  values = c(10, 20, 30, 6, 14, 40, 30, 20, 10),
+  fct = c(rep("Thing 1", 3), rep("Thing 2", 3), rep("Thing 3", 3))
+) -> xdf
+
+ggplot(xdf, aes(fill=parts, values=values)) +
+  geom_waffle(color = "white", size=1.125, n_rows = 6) +
+  facet_wrap(~fct, ncol=1) +
+  scale_x_discrete(expand=c(0,0)) +
+  scale_y_discrete(expand=c(0,0)) +
+  ggthemes::scale_fill_tableau(name=NULL) +
+  coord_equal() +
+  labs(
+    title = "Faceted Waffle Geoms"
+  ) +
+  theme_ipsum_rc(grid="") +
+  theme_enhance_waffle()
+```
+
+```{r}
+library(tidyverse)
+library(ggbeeswarm)
+library(biscale)
+library(fiftystater)
+library(geofacet)
+library(patchwork)
+library(cowplot)
+library(ggtext)
+```
+
