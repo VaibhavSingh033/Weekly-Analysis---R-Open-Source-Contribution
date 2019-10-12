@@ -1,0 +1,20 @@
+---
+title: "Pizza Rating"
+author: "Vaibhav"
+date: "10/12/2019"
+output: html_document
+---
+
+Reading the data
+```{r}
+pizza_jared <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_jared.csv")
+pizza_barstool <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_barstool.csv")
+pizza_datafiniti <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_datafiniti.csv")
+```
+
+
+Exploring the data
+```{r}
+head(pizz)
+```
+
