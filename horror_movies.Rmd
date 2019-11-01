@@ -1,0 +1,124 @@
+---
+title: "Horror Movies"
+author: "Vaibhav"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggforce)
+library(cowplot)
+library(stringr)
+library(tidyverse)
+library(extrafont)
+
+horror_movies_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-22/horror_movies.csv")
+
+```
+
+
+#Cleaning data
+```{r}
+horror_movies <- horror_movies_raw %>%
+  extract(title, "year", "\\((\\d\\d\\d\\d)\\)$", remove = FALSE, convert = TRUE) %>%
+  mutate(budget = parse_number(budget), movie_run_time=parse_number(movie_run_time), time=round(movie_run_time/60,1),time=case_when(time<1~"<= 1 Hour",time>1&time<1.5 ~ "1 to 1.5, Hours",time>=1.5&time<2~"1.5 to 2 Hours",time>=2~"> 2 Hours"                                                                                                                              )) %>%
+  separate(plot, c("director", "cast_sentence", "plot"), extra = "merge", sep = "\\. ", fill = "right") %>%
+  distinct(title, .keep_all = TRUE)
+```
+
+```{r}
+
+horror_movies %>% count(year,sort=T)
+horror_movies %>% count(genres,sort=T)
+
+
+horror_movies %>%
+  ggplot(aes(budget)) +
+  geom_histogram() +
+  scale_x_log10(labels = scales::dollar)
+```
+
+#Do higher budget movies end up being higher rated
+
+
+```{r}
+horror_movies %>% 
+  ggplot(aes(budget, review_rating))+
+  geom_point()+
+  scale_x_log10(labels = scales::dollar)+
+  geom_smooth(method="lm")
+
+#Which countries produce most horror movies
+
+horror_movies %>% 
+  count(release_country,sort=T)
+
+ggplot(aes(rel, review_rating))+
+  geom_point()+
+  scale_x_log10(labels = scales::dollar)+
+  geom_smooth(method="lm")
+
+```
+
+
+
+Yearwise change in rating 
+```{r}
+horror_movies <- horror_movies %>% inner_join(horror_movies %>% group_by(year) %>% summarise(avg_rating=round(mean(review_rating,na.rm=TRUE),1))) 
+
+total_avg<-mean(horror_movies$review_rating,na.rm=TRUE)
+
+plot <-horror_movies %>% 
+  filter(year>2008) %>% 
+  ggplot(aes(as.factor(year),review_rating))+
+  geom_jitter(aes(color=as.factor(time)), size=5, alpha = 0.15, width = 0.15)+
+  geom_mark_circle(x=8.901,y=9.8189, color='grey50', label.fill = NA, expand = unit(3, "mm"))+
+  geom_mark_circle(x=9.03,y=5.7, color='grey50', label.fill = NA, expand = unit(3, "mm"))+
+  scale_y_continuous(limits=c(0,10))+
+  geom_segment(aes(x = as.factor(year), xend = as.factor(year),y = total_avg, yend = avg_rating), size = 0.5, color='gray30')+
+    geom_point(mapping=aes(x=as.factor(year), y=avg_rating, fill=as.factor(year)), color="gray30", shape=21, size=7, stroke=1)+
+  geom_hline(aes(yintercept = total_avg), color = "gray30", size = 0.5)+
+  annotate("text", x = 7.901, y = 9.9409, fontface="bold", label ='	Bonehill Road')+
+  annotate("text", y = 1.0, x = 8.1409, fontface="bold", label ='	Countrycide')+
+  annotate("text", y = 5.7, x = 8.63,  label ='	Most Expensive Horror Film')+
+  annotate("text", y = 5.7, x = 8.33,fontface="bold",  label ='	Ghouls($162M) ')+
+  coord_flip()+
+  theme_minimal()+
+  theme(
+    title=element_text(face="bold",family = "Waltograph UI",size=20),
+    plot.subtitle=element_text(face="italic",family = "garamond"),
+    axis.title=element_text(face="bold",size=10),
+    axis.text.y=element_text(size=10)
+  )+
+  guides( fill = FALSE)+
+  labs(
+    title="Horror Movie ratings for last 9 years !",
+    subtitle="Ratings based on IMDB Data",
+    x="Year",
+    y='Ratings',
+    color="Duration of Movies"
+  )
+#create arrows for annotations
+arrows <- tibble(
+  x1 = c(8.92,8.92   ),
+  x2 = c(8.001,8.201    ),
+  y1 = c(9.7709,1.0    ),
+  y2 = c(9.9409,0.85   ) )
+plot + geom_curve(data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
+                    arrow = arrow(length = unit(0.07, "inch")), size = 0.6,
+                    color = "gray20", curvature = -0.25)
+
+```
+
+
+```{r}
+library(showtext)
+## Add the font with the corresponding font faces
+
+font_add("YouMurderer BB")
+         
+```
+
