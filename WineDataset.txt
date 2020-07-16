@@ -1,0 +1,156 @@
+
+```{r prep, message=FALSE}
+library(tidyverse)
+library(ggdist)
+library(grid)
+library(png)
+library(ggtext)
+library(ragg)
+library(pdftools)
+## ggplot theme
+theme_set(theme_minimal(base_family = "Bebas Neue", base_size = 16))
+theme_update(
+  panel.grid = element_blank(),
+  axis.title = element_blank(),
+  axis.text = element_blank(),
+  plot.background = element_rect(color = NA, fill = "#faf9f5")
+)
+```
+
+```{r data}
+
+df_wines <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-28/winemag-data-130k-v2.csv") %>% 
+  dplyr::select(-X1) %>% 
+  unique()
+
+```
+
+```{r}
+df_wines_p <- df_wines %>% 
+   sample_n(1500) %>% 
+  filter(!is.na(points),points!=0,!is.na(price)) %>% 
+  add_count(country) %>% 
+ # mutate(points=(points-80)/20) %>% 
+  filter(n >= 10) %>% 
+  mutate(zRT = scale(price)) %>% 
+         #price=scale(price),
+         #points=scale(points)) %>% 
+  filter(between(zRT,-2.5,+2.5)) %>% 
+  ungroup() %>% 
+  group_by(country,description,province,variety) %>%
+  summarise(rating = mean(points, na.rm = T),
+            price=mean(price,na.rm=T)) %>% 
+  group_by(country) %>% 
+  mutate(#
+    med_rating =    median(rating),
+    min_rating =    min(rating,na.rm = TRUE),
+    max_raing  =    max(rating,na.rm = TRUE),
+    med_price  =    median(price,na.rm = TRUE),
+    min_price  =    min(price,na.rm = TRUE),
+    max_price  =    max(price,na.rm=TRUE),
+    #scaled_rating = scale(rating),
+    n = dplyr::n()
+    ) %>% 
+  ungroup() %>% 
+  mutate(
+    country = fct_reorder(country, rating),
+    y = as.numeric(country) - .3 ## left-over from earlier trials
+  ) 
+```
+
+```{r plot, fig.width = 12.5, fig.height = 9}
+img <- readPNG("bottle.png")
+r <- rasterGrob(img, interpolate = TRUE)
+
+df_wines_sum <- 
+  df_wines_p %>% 
+  group_by(country)  %>% 
+  slice(1) %>% 
+  mutate(size=(sqrt(n)))
+
+df_labs <-
+  tibble(
+    x = c(60.5, 88.2, 61.7, 86.2),
+    y = c(6.2, 12.2, 1.2, 2.1),
+    label = c("The coffee bean with the lowest\nrating has its origin in Guatemala.", "The best coffee—in\nterms of both median and\nmaximum rating—is shipped\nto you from Ethiopia!", "One bean from Nicaragua\ngot a bad rating, too.", "With 218 tested beans,\nMexico is the country with\nthe most reviews.")
+  )
+
+ggplot(df_wines_p, aes(
+    rating, 
+    y = y
+  ))  +
+  annotation_custom(r, xmin = 59, xmax = 65, ymin = -1, ymax = 4.5) +
+  ## labels countries
+  geom_text(
+    data = df_wines_sum,
+    aes(
+      x = min_rating, 
+      y = y,
+      label = country,
+      size = size
+    ),
+    family = "Bebas Neue",
+    color = "grey88",
+    fontface = "bold",
+    vjust = 0,
+    hjust = -0.01
+  ) +
+  ## stripe
+  stat_interval(
+    aes(y = y - .05),
+    orientation = "horizontal",
+    .width = c(.25, .5, .95, 1),
+    stroke = 0,
+    size = 1.4
+  ) +
+  ## indicator median
+  geom_point(
+    data = df_wines_sum,
+    aes(x = med_rating, y = y - .18),
+    shape = 17,
+    color = "grey20",
+    size = 2
+  ) + 
+  geom_text(
+    data = df_wines_sum,
+    aes(
+      x = med_rating + .16, 
+      y = y - .11,
+      label = glue::glue("{round(med_rating, 2)}") 
+    ),
+    family = "Bebas Neue",
+    color = "grey20",
+    size = 2.5,
+    vjust = 1,
+    hjust = 0
+  ) +
+  ## indicator minimum
+  geom_point(
+    data = df_wines_sum,
+    aes(x = min_rating + .01, y = y - .19),
+    shape = 2,
+    color = "firebrick",
+    size = 1.9
+  ) + 
+   geom_text(
+     data = df_wines_sum,
+     aes(
+       x = min_rating + .17, 
+       y = y - .11,
+       label = glue::glue("{round(min_price, 1)} USD") 
+     ),
+     family = "Bebas Neue",
+     color = "firebrick",
+     size = 2.5,
+     vjust = 1,
+     hjust = 0
+   ) +
+   ## dots
+  stat_dots(
+    quantiles = NA,
+    orientation = "horizontal",
+    normalize = "none",
+    scale = 0.87,
+    color = "black",
+    fill = "#6f4e37",
+    dotsize=.1)
