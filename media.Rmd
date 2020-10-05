@@ -1,0 +1,200 @@
+---
+title: "Media Franchise"
+author: "Vaibhav Singh"
+date: "10/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+library(janitor)
+library(gt)
+library(emo)
+library(tidyverse)
+media_franchises <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-02/media_franchises.csv")
+
+
+prep_data <- media_franchises %>%
+  pivot_wider(names_from = "revenue_category", values_from = "revenue") %>% 
+  clean_names() %>% 
+  mutate(total_revenue = select(., book_sales:comic_or_manga) %>% rowSums(na.rm = TRUE),
+         TV=tv+home_video_entertainment) %>%
+  select(-tv,-home_video_entertainment) %>% 
+  arrange(desc(total_revenue)) %>% 
+  mutate(franchise=case_when(
+                            franchise=="Pokémon"~"Pokémon",
+                            str_detect(franchise, "Jump")~"Shonen Jump",
+                            str_detect(franchise, "Power Rangers")~"Power Rangers",
+                            str_detect(franchise, "Harry")~"Harry Potter",
+                            str_detect(franchise, "Dragon")~"Dragon Ball",
+                            str_detect(franchise, "Princess")~"Disney Princess",
+                            TRUE ~franchise),
+       owners=case_when(owners=="Nintendo (trademark) The Pokémon Company (Nintendo, Game Freak, Creatures) (copyright)"~ "Nintendo",
+                        owners=="Walt Disney Studios (The Walt Disney Company) (franchise) Sony (Spider-Man films)"~"Walt Disney Studios & Sony",
+                        owners=="Shueisha (Hitotsubashi Group) (manga) Bandai Namco (games)"~"Hitotsubashi Group (manga) Bandai Namco (games)",
+                        TRUE ~ owners))
+  
+table_data <- prep_data %>% 
+    mutate(
+    # add url to album art
+    img = paste0("https://raw.githubusercontent.com/VaibhavSingh033/Images/main/", franchise, ".png"),
+    franchise = paste0("<span style='color:#344072'>**", franchise, "**</span>", "<br><span style='color:#8086A0;font-size:10pt'>", owners, "</span>")) %>% 
+  select(img,franchise,year_created,original_media,owners,total_revenue,everything(),-creators,-music) 
+
+```
+
+
+```{r}
+media_table <- table_data %>% 
+  head(20) %>% 
+  gt() %>% 
+  text_transform(
+    locations = cells_body(vars(img)),
+    fn = function(x){
+      web_image(url = x, height = 80)
+    }
+  ) %>% 
+  tab_style(
+    style = cell_text(font = "Gill Sans", weight = "normal"),
+    locations = cells_column_labels(columns = gt::everything())
+  ) %>% 
+  fmt_markdown(columns = c("franchise")) %>% 
+  fmt_currency(
+              columns=vars(total_revenue),
+              decimals = 1,
+              pattern = "{x}B"
+            )  %>%
+  fmt_currency(
+              columns=vars(TV,book_sales,box_office,video_games_games,merchandise_licensing_retail,comic_or_manga,TV),
+              decimals = 0,
+              pattern = "{x}B"
+            ) %>% 
+  text_transform(
+    locations = cells_body(columns = gt::everything()),
+    fn = function(x) {
+      str_replace(x, "NA", "–")}) %>% 
+   #cols_width(
+   # vars(original_media) ~ px(120),
+   #  vars(year_created) ~ px(90),
+   # vars(total_revenue) ~ px(100),
+   #  vars(total_revenue) ~ px(150),
+   #   vars(owners) ~ px(140),
+   #  vars(franchise) ~ px(200),
+   # vars(video_games_games)~px(100)
+  #) %>% 
+   tab_source_note(html("<span style='color:#F2AA99;'>TABLE: </span>GT Table | <span style='color:#F2AA99;'>DATA: </span> Wikipedia")) %>% 
+  tab_header(title=html("<span style='color:#F2AA99;font-size:25pt;font-weight:bold'>WORLD'S MOST POWERFUL MEDIA FRANCHISE</span><br><span style = 'font-size:15pt;color:#4292E4;font-weight:bold'>Revenues earned by Top 20 franchise in different media formats</span>"))%>%
+   # subtitle=html("<span style='color:#F2AA99;'> Top 15 Franchises by Overall Revenue</span>")) %>%  
+    tab_spanner(
+    label = "Split of overall revenue across media formats",
+    columns = c(7:12)
+  ) %>% 
+   cols_align(
+              align="right",
+              columns=c(7:12)) %>% 
+    cols_align(
+              align="center",
+              columns=c(3,4,5,6)) %>% 
+      cols_align(
+              align="left",
+              columns=c(2)) %>% 
+   cols_label(img="" ,
+              franchise="Franchise (Owners)",
+              year_created="Year Created",
+              original_media="Original Media",
+              total_revenue=paste0("Total Revenue ",emo::ji("moneybag")),
+              owners="Owners",
+              book_sales=paste0("Books ",emo::ji("books")),
+              box_office = paste0("Movies ",emo::ji("movie_camera")),
+              video_games_games=paste0("Video Games ","\n",emo::ji("video_game")),
+              merchandise_licensing_retail=paste0("License ",emo::ji("briefcase")),
+             # music="Music",
+              comic_or_manga =paste0("Comics ","\n",emo::ji("open_book")),
+              TV=paste0("TV ",emo::ji("tv"))) %>% 
+   tab_style(
+    style=cell_text(font="Cinzel",
+                    color="#8DDBE0",
+                    weight="bold",
+                    size=20,
+                    align="center"),
+    locations=cells_title(group="title")
+  ) %>% 
+    tab_style(
+    style=cell_text(font="Cinzel",
+                    size=8,
+                    align="center"),
+    locations=cells_title(group="subtitle")
+  ) %>% 
+  gt::tab_style(
+    style=cell_text(font="Cinzel",
+                    weight="bold",
+                    color="#F2AA99"),
+    locations=cells_column_labels(gt::everything())) %>%
+    gt::tab_style(
+    style=cell_text(font="Cinzel",
+                    weight="bold",
+                    color="#4292E4",
+                    size = px(12)),
+    locations=cells_column_labels(vars("book_sales","box_office","video_games_games","merchandise_licensing_retail","comic_or_manga","TV"))) %>% 
+   gt::tab_style(
+    style=cell_text(font="Cinzel",
+                    weight="bold",
+                    color="#F2AA99"),
+    locations=cells_column_spanners(gt::everything())) %>%
+  gt::tab_style(
+    style=cell_text(font="Chalkduster",
+                    weight="bold",
+                    color="black"),
+    locations=cells_body(gt::everything())) %>% 
+  tab_style(style=cell_borders(
+                  sides="bottom",
+                  color="#d3d3d3",
+                  weight=px(3)),
+            locations=cells_body()) %>%
+  # tab_style(style=cell_borders(
+  #                 sides="bottom",
+  #                 color="grey90",
+  #                 weight=px(3)),
+  #           locations=cells_column_spanners(gt::everything())) %>% 
+  opt_table_font(font=list(c("Cinzel"))) %>% 
+  tab_options(table.background.color = colorspace::lighten("#47745A",0.96),
+              #table.font.color = "#F3FCF0",
+              data_row.padding = px(3),
+              row_group.background.color = "#FFEFDB80",
+              row_group.padding =  px(3),
+              column_labels.text_transform = "uppercase",
+              table.font.color = "#344072",
+              row_group.border.top.width = px(3),
+              row_group.border.top.color = "black",
+              row_group.border.bottom.color = "black",
+              table_body.hlines.color = "black",
+              table.border.top.color = "black",
+              table.border.top.width = px(3),
+              table.border.right.width = px(3),
+              table.border.left.width = px(3),
+              table.border.bottom.color = "black",
+              table.border.left.color = "black",
+              table.border.right.color = "black",
+             # heading.title.font.size = px(2),
+              heading.border.bottom.color="black",
+              table.border.bottom.width = px(3),
+              column_labels.border.bottom.color = "black",
+              column_labels.border.bottom.width = px(3)) %>% 
+   tab_footnote(
+    footnote = "Revenue in Billions (USD)",
+    locations = cells_column_labels(
+      columns = vars(total_revenue))) %>% 
+   cols_hide(vars(owners))
+
+
+gtsave(media_table, here::here("2020-week40", "plots", "media_table.png"), zoom = 2, expand = 10)
+
+```
+
+
+
