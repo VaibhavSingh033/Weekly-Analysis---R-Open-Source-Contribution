@@ -1,12 +1,11 @@
 ---
-title: "Media Franchise"
-author: "Vaibhav Singh"
-date: "10/5/2020"
+title: "Table Contest 2020 Submission"
+author: "Vaibhav Singh (https://twitter.com/MYMRockMama)"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 
@@ -78,16 +77,19 @@ media_table <- table_data %>%
     locations = cells_body(columns = gt::everything()),
     fn = function(x) {
       str_replace(x, "NA", "–")}) %>% 
-   #cols_width(
-   # vars(original_media) ~ px(120),
+   cols_width(
+    vars(img) ~ px(90),
    #  vars(year_created) ~ px(90),
    # vars(total_revenue) ~ px(100),
    #  vars(total_revenue) ~ px(150),
    #   vars(owners) ~ px(140),
    #  vars(franchise) ~ px(200),
    # vars(video_games_games)~px(100)
-  #) %>% 
-   tab_source_note(html("<span style='color:#F2AA99;'>TABLE: </span>GT Table | <span style='color:#F2AA99;'>DATA: </span> Wikipedia")) %>% 
+ ) %>% 
+  tab_style(style = list(cell_fill(color = colorspace::lighten("#f7d9d2",0.75)), 
+                         cell_text(weight = 'bold')), 
+            locations = cells_body(columns=vars(total_revenue))) %>% 
+   tab_source_note(html("<span style='color:#F2AA99;'>TABLE: </span>GT Table | <span style='color:#F2AA99;'>DATA: </span> Wikipedia| <span style='color:#F2AA99;'> Created by: </span> Vaibhav Singh")) %>% 
   tab_header(title=html("<span style='color:#F2AA99;font-size:25pt;font-weight:bold'>WORLD'S MOST POWERFUL MEDIA FRANCHISE</span><br><span style = 'font-size:15pt;color:#4292E4;font-weight:bold'>Revenues earned by Top 20 franchise in different media formats</span>"))%>%
    # subtitle=html("<span style='color:#F2AA99;'> Top 15 Franchises by Overall Revenue</span>")) %>%  
     tab_spanner(
@@ -192,9 +194,12 @@ media_table <- table_data %>%
    cols_hide(vars(owners))
 
 
-gtsave(media_table, here::here("2020-week40", "plots", "media_table.png"), zoom = 2, expand = 10)
+#gtsave(media_table, here::here("2020-week40", "plots", "media_table.png"), zoom = 2, expand = 10)
 
 ```
 
 
+```{r}
+media_table
+```
 
