@@ -1,0 +1,297 @@
+---
+title: "Tennis"
+author: "Vaibhav Singh"
+date: "10/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(emo)
+library(extrafont)
+library(patchwork)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+gs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-09/grand_slam_timeline.csv")
+
+gs %>%
+  filter(outcome=="Won") %>% 
+  count(player,gender,sort=T) %>% 
+  pivot_wider(names_from = "gender", values_from = "n") %>% head(20)
+
+gs %>% count(outcome,sort=TRUE)
+
+gs_final <- gs %>% 
+  mutate(special = case_when(
+                     player == "Roger Federer" ~ "Roger Federer",
+                     player == "Rafael Nadal" ~ "Rafael Nadal",
+                     player == "Novak Djokovic" ~ "Novak Djokovic",
+                     TRUE ~"others"),
+      tournament_level = case_when(
+      str_detect(outcome,"Qualifi")  ~ 8,
+      outcome == "1st Round" ~ 8,
+      outcome == "2nd Round" ~ 7,
+      outcome == "3rd Round" ~ 6,
+      outcome == "4th Round" ~ 5,
+      outcome == "Quarterfinalist" ~ 4,
+      outcome == "Semi-finalist" ~ 3,
+      outcome == "Finalist" ~ 2,
+      outcome == "Won" ~ 1
+    ),
+    special = factor(special, 
+                        levels = c('Roger Federer','Rafael Nadal','Novak Djokovic','others'),
+                        ordered = TRUE),
+    special = forcats::fct_explicit_na(special))
+  
+      
+```
+
+
+```{r Australian Open}
+'%!in%' <- function(x,y)!('%in%'(x,y))
+  
+
+rect_1 <- data.frame(
+  x1 = c(0.4),
+  x2 = c(1.6),
+  y1 = c(0, 4.5, 6.5, 8.5), 
+  y2 = c(3.5, 5.5, 7.5, 9.5)
+)
+
+colors <- c('#ea7000', '#1a2857ff', '#41b0ab','#e2e2e2')
+
+df_aus <- gs_final %>% 
+  filter(year>=2000,gender=="Male") %>% 
+  filter(outcome %!in% c("Absent","Lost Qualifier","Retired"),!is.na(outcome)) %>% 
+  filter(tournament=="Australian Open") 
+
+au <- df_aus %>% 
+  ggplot() + 
+  geom_rect(data = rect_1, aes(xmin = x1, xmax = x2,
+                               ymin = y1, ymax = y2), 
+            fill = "#3e80bc") +
+  coord_polar(start = pi) +
+  geom_point(aes(x = 1, y = tournament_level + 2, color =special), 
+             position = position_jitter(width = 0.5, height = 0.25),
+             size = 1)+
+  scale_color_manual(name = "PLAYERS", values = colors) + 
+  guides(color = guide_legend(ncol = 1)) + 
+  theme_void() + 
+  labs(title="Australian Open", color="Players",subtitle = "Since 2000, 14 of 20 Aus Open title have been grabbed by these three\nDjokovic dominating with 7 titles closely followed by Federer(6) & Nadal (1)")+
+  theme(
+    plot.background = element_rect(fill = 'white', color = "white"),
+    plot.margin = margin(0, 200, 0, 0),
+    plot.title = element_text(family = 'Cinzel', size = 20,color="#3e80bc",
+                              margin = margin(0,0,0,0),
+                              hjust=1),
+    plot.subtitle = element_text(family = "Schoolbell", 
+                                 size = 8,
+                                 hjust=0.5),
+    plot.caption = element_text(family = "Roboto Lt", 
+                                 size = 8,
+                                 margin = margin(0,0,0,0)),
+    panel.background = element_blank(),
+    #plot.margin  =  margin(2, 2, 2, 2, "cm"),
+    legend.title = element_text(family="Cinzel"),
+    legend.text = element_text(family = 'Cinzel',size=12),
+    legend.key.size = unit(2, 'mm'),
+    #legend.position = c(-0.5, 0),
+    legend.position="none")
+
+  
+  
+```
+
+
+
+```{r 2. French Open}
+'%!in%' <- function(x,y)!('%in%'(x,y))
+  
+
+rect_1 <- data.frame(
+  x1 = c(0.4),
+  x2 = c(1.6),
+  y1 = c(0, 4.5, 6.5, 8.5), 
+  y2 = c(3.5, 5.5, 7.5, 9.5)
+)
+
+colors <- c('#ea7000', '#1a2857ff', '#41b0ab','#e2e2e2')
+
+df_fr <- gs_final %>% 
+  filter(year>=2000,gender=="Male") %>% 
+  filter(outcome %!in% c("Absent","Lost Qualifier","Retired"),!is.na(outcome)) %>% 
+  filter(tournament=="French Open") 
+
+fr <- df_fr %>% 
+  ggplot() + 
+  geom_rect(data = rect_1, aes(xmin = x1, xmax = x2,
+                               ymin = y1, ymax = y2), 
+            fill = "#cb4154") +
+  coord_polar(start = pi) +
+  geom_point(aes(x = 1, y = tournament_level + 2, color =special), 
+             position = position_jitter(width = 0.5, height = 0.25),
+             size = 1)+
+  scale_color_manual(name = "PLAYERS", values = colors) + 
+  guides(color = guide_legend(ncol = 1)) + 
+  theme_void() + 
+  labs(title="French Open", color="Players",subtitle = "Since 2000, 13 of 19 French Open title have been grabbed by these three\nNadal decimating others with 11 titles, Federer & Djokovic both securing 1 each")+
+  theme(
+    plot.background = element_rect(fill = 'white', color = "white"),
+    plot.margin = margin(0, 0, 0, 0),
+    plot.title = element_text(family = 'Cinzel', size = 20,color="#cb4154",
+                              margin = margin(0,0,0,0),
+                              hjust=2.05),
+    plot.subtitle = element_text(family = "Schoolbell", 
+                                 size = 8,
+                                 margin = margin(0,0,0,0),
+                                 hjust=-0.5,vjust=-0.5),
+    plot.caption = element_text(family = "Roboto Lt", 
+                                 size = 8,
+                                 margin = margin(0,0,0,0)),
+    panel.background = element_blank(),
+    legend.title = element_text(family="Cinzel"),
+    legend.text = element_text(family = 'Cinzel',size=12),
+    legend.key.size = unit(2, 'mm'),
+    legend.position = c(-0.5, 0.3))+
+    guides(colour = guide_legend(override.aes = list(size=6)))
+    #legend.position = c(-0.1, 0.6)
+  
+
+  
+  
+```
+
+```{r 3. Wimbeldon}
+'%!in%' <- function(x,y)!('%in%'(x,y))
+  
+
+rect_1 <- data.frame(
+  x1 = c(0.4),
+  x2 = c(1.6),
+  y1 = c(0, 4.5, 6.5, 8.5), 
+  y2 = c(3.5, 5.5, 7.5, 9.5)
+)
+
+colors <- c('#ea7000', '#1a2857ff', '#41b0ab','#e2e2e2')
+
+df_wimb <- gs_final %>% 
+  filter(year>=2000,gender=="Male") %>% 
+  filter(outcome %!in% c("Absent","Lost Qualifier","Retired"),!is.na(outcome)) %>% 
+  filter(tournament=="Wimbledon") 
+
+wi <- df_wimb %>% 
+  ggplot() + 
+  geom_rect(data = rect_1, aes(xmin = x1, xmax = x2,
+                               ymin = y1, ymax = y2), 
+            fill = "#229954") +
+  coord_polar(start = pi) +
+  geom_point(aes(x = 1, y = tournament_level + 2, color =special), 
+             position = position_jitter(width = 0.5, height = 0.25),
+             size = 1)+
+  scale_color_manual(name = "PLAYERS", values = colors) + 
+  guides(color = guide_legend(ncol = 1)) + 
+  theme_void() + 
+  labs(title="Wimbeldon", color="Players",subtitle = "Since 2000, 14 of 19 Wimbeldon title have been grabbed by these three\nRoger Federer dominating with 8 titles followed by Djokovic(4) & Nadal (2)")+
+  theme(
+    plot.background = element_rect(fill = 'white', color = "white"),
+    plot.margin = margin(0, 0, 0, 0),
+    plot.title = element_text(family = 'Cinzel', size = 20,colour = "#229954",
+                              margin = margin(0,0,0,0),
+                              hjust=1),
+    plot.subtitle = element_text(family = "Schoolbell", 
+                                 size = 8,
+                                 hjust=0.5,
+                                 margin = margin(0,0,0,0)),
+    plot.caption = element_text(family = "Roboto Lt", 
+                                 size = 8,
+                                 margin = margin(0,0,0,0)),
+    panel.background = element_blank(),
+    legend.title = element_text(family = 'Cinzel'),
+    legend.text = element_text(family = 'Cinzel'),
+    legend.key.size = unit(2, 'mm'),
+    legend.position = "none"
+    #legend.position = c(-0.1, 0.6)
+  )
+
+  
+  
+```
+
+
+
+```{r 4. US Open}
+'%!in%' <- function(x,y)!('%in%'(x,y))
+  
+
+rect_1 <- data.frame(
+  x1 = c(0.4),
+  x2 = c(1.6),
+  y1 = c(0, 4.5, 6.5, 8.5), 
+  y2 = c(3.5, 5.5, 7.5, 9.5)
+)
+
+colors <- c('#ea7000', '#1a2857ff', '#41b0ab','#e2e2e2')
+
+df_us <- gs_final %>% 
+  filter(year>=2000,gender=="Male") %>% 
+  filter(outcome %!in% c("Absent","Lost Qualifier","Retired"),!is.na(outcome)) %>% 
+  filter(tournament=="US Open") 
+
+us <- df_us %>% 
+  ggplot() + 
+  geom_rect(data = rect_1, aes(xmin = x1, xmax = x2,
+                               ymin = y1, ymax = y2), 
+            fill = "#3C638E") +
+  coord_polar(start = pi) +
+  geom_point(aes(x = 1, y = tournament_level + 2, color =special), 
+             position = position_jitter(width = 0.5, height = 0.25),
+             size = 1)+
+  scale_color_manual(name = "PLAYERS", values = colors) + 
+  guides(color = guide_legend(ncol = 1)) + 
+  theme_void() + 
+  labs(title="US Open", color="Players",subtitle = "Since 2000, 11 of 19 Open title have been grabbed by these three \nRoger Federer dominating with 5 titles followed by Djokovic & Nadal each with 3 titles")+
+  theme(
+    plot.background = element_rect(fill = 'white', color = "white"),
+    plot.margin = margin(0, 0, 0, 0),
+    plot.title = element_text(family = 'Cinzel', size = 20,colour = "#3C638E",
+                              margin = margin(0,0,0,0),
+                              hjust=1.05),
+    plot.subtitle = element_text(family = "Schoolbell", 
+                                 size = 8,
+                                 hjust=-0.5,vjust=0.5,
+                                 margin = margin(0,0,0,0)),
+    plot.caption = element_text(family = "Roboto Lt", 
+                                 size = 8,
+                                 margin = margin(0,0,0,0)),
+    panel.background = element_blank(),
+    legend.title = element_text(family = 'Cinzel'),
+    legend.text = element_text(family = 'Cinzel'),
+    legend.key.size = unit(2, 'mm'),
+    legend.position = "none"
+    #legend.position = c(-0.1, 0.6)
+  )
+  
+```
+
+
+
+```{r}
+p <- au+fr+wi+us+
+  plot_layout(
+    ncol=2,
+    widths = unit(c(60, 60, 60, 60), "mm"),
+    heights = unit(50, "mm"),
+    guides = "keep")  +
+   plot_annotation(title = 'GRAND SLAM Domination by \n Federer, Nadal & Djokovic Visualised',
+                   theme = theme(plot.title = element_text(size = 30))) &
+   theme(text = element_text('Cinzel')) 
+
+ggsave('temp.jpeg', p, width = 14, height = 8)
+
+
+  
+```
+
