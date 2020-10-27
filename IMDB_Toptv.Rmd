@@ -1,0 +1,201 @@
+---
+title: "Scraping Top 10 Indian TV show on IMDB" 
+author: "Vaibhav Singh"
+date: "10/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(XML)
+library(magick)
+library(cowplot)
+library(ggtext)
+library(extrafont)
+library(showtext)
+
+```
+
+
+
+```{r}
+url = "https://www.imdb.com/chart/toptv"
+
+page = read_html(url)
+tv.nodes <- html_nodes(page,'.titleColumn a')
+tv.link = sapply(html_attrs(tv.nodes),`[[`,'href')
+tv.link = paste0("http://www.imdb.com",tv.link)
+tv.cast = sapply(html_attrs(tv.nodes),`[[`,'title')
+tv.name = html_text(tv.nodes)
+sec <- html_nodes(page,'.secondaryInfo')
+year = as.numeric(gsub(")","",                          # Removing )
+            gsub("\\(","",                   # Removing (
+                 html_text( sec )                 # get text of HTML node  
+                   )))
+
+rating.nodes = html_nodes(page,'.imdbRating')
+# Check One node
+xmlTreeParse(rating.nodes[[20]])
+
+rating.nodes = html_nodes(page,'.imdbRating strong')
+votes = as.numeric(gsub(',','',
+                        gsub(' user ratings','',
+                             gsub('.*?based on ','',
+                                  sapply(html_attrs(rating.nodes),`[[`,'title')
+                             ))))
+
+rating = as.numeric(html_text(rating.nodes))
+
+top250 <- data.frame(tv.name, tv.cast, tv.link,year,votes,rating)
+```
+
+
+```{r}
+url1 <- as.character(top250$tv.link)
+
+scrape_language <- function(x) {
+page <- read_html(x)
+lang <- html_nodes(page,'.txt-block:nth-child(5) a , .txt-block:nth-child(5) .inline')
+language1 <-    gsub("^$|^[ \t\n\v\r\f]+|\n| |Language|:","",
+                as.character(html_text(lang)[2]))
+language2 <-    gsub("^$|^[ \t\n\v\r\f]+|\n| |Language|:","",
+                as.character(html_text(lang)[3]))
+ 
+
+ggenre <- html_nodes(page, '.see-more.canwrap~ .canwrap a , .see-more.canwrap~ .canwrap .inline')
+
+genre <-  as.character(html_text(ggenre)[2])
+df <- data.frame(language1,language2,genre)
+return(df)
+}
+
+gen_lan_list <- map(url1,scrape_language)
+
+three_col <- gen_lan_list %>%  
+  enframe() %>% unnest()
+
+final_df <- cbind(top250,three_col) %>% 
+            mutate(country=case_when(str_detect(language1,"Hindi")~"Indian",
+                                     str_detect(language2,"Hindi")~"Indian",
+                                     str_detect(tv.name,"Ramayan|Mahabharat")~"Indian",
+                                     TRUE ~"others"),
+                   tv.name=as.character(tv.name),
+                   tv.name=case_when(str_detect(tv.name,"Harshad")~"SCAM 1992: \nHarshad Mehta Story",
+                                                TRUE ~ tv.name))  
+
+final_df %>%  
+  mutate(rank=rank(-rating,ties.method = "first")) %>% 
+  filter(country=="Indian")
+
+
+final_df %>%  
+  mutate(rank=rank(-rating,ties.method = "first")) %>%
+  select(tv.name, year,votes,rating,rank) %>% 
+arrange(desc(votes))
+```
+
+Getting the dataset ready
+```{r}
+plot1 <- final_df %>% 
+  select(tv.name, year,votes,rating,country) %>% 
+  mutate(rank=rank(-rating,ties.method = "first"))
+
+plot1_fil <- plot1 %>% 
+  filter(rank %in% c(1,4,11,13,18,41,43,44,50,62,65,68,77,79, 85,94,108,169,209,214)) %>% 
+  mutate(decade=year-year%%10,
+         pos = rank(rating,ties.method = "last")-11,
+         pos1 = -rank(rank,ties.method = "first")-11,
+         votes=votes/10000,
+         tv.name=as.character(tv.name),
+         lab=paste0(rank," (",rating,")")) %>% 
+  rowwise() %>%
+  mutate(
+    x = list(c(-5, 0, 0, -5)),
+    y = list(c(pos*4 - 1.4, pos*2 - 0.7, pos*2 + 0.7, pos*4 + 1.4))) %>% 
+  unnest(cols = c(x, y)) 
+
+```
+
+Creating plot on processed data
+```{r}
+logo_file <- "imdb_tv.jpg"
+scam <- "scam1992_2.jpg"
+pitchers <- "tvf_pitchers.jpg"
+ram<- "ramayan.jpg"
+maha <- "maha.jpg"
+kota <- "kota.jpg"
+sara <- "sarabhai.jpg"
+sara_1 <- "sara_1.jpg"
+
+p <- ggplot() +
+  geom_rect(aes(xmin = 0, ymin = pos*2 - 0.7,
+                xmax = votes/2, ymax = pos*2 + 0.7),
+            fill = "#f56a79", color = NA,data=plot1_fil%>% filter(country=="Indian")) +
+  geom_rect(aes(xmin = -19, ymin = pos*4 - 1.7,
+                xmax = -5, ymax = pos*4 + 1.7), fill = "#ff414d", color = NA,
+            data=plot1_fil %>% filter(country=="Indian")) +
+  geom_rect(aes(xmin = -19, ymin = pos*4 - 1.7,
+                xmax = -5, ymax = pos*4 + 1.7), fill = "#1aa6b7", color = NA,
+            data=plot1_fil %>% filter(country!="Indian")) +
+    geom_rect(aes(xmin = 0, ymin = pos*2 - 0.7,
+                xmax = votes/2, ymax = pos*2 + 0.7),
+            fill = "#77dae6", color = NA,data=plot1_fil%>% filter(country!="Indian"))+
+  geom_polygon(aes(x, y, group = tv.name), fill = "#f2b1b8", color = NA,
+               data=plot1_fil %>% filter(country=="Indian"))+
+    geom_polygon(aes(x, y, group = tv.name), fill = "#cdf3f7", color = NA,
+               data=plot1_fil %>% filter(country!="Indian"))+
+  geom_text(aes(-14.5, pos*4, label = tv.name), family = "Futura Md BT", fontface = "bold", color = "#FFFFFF", hjust = 0.25, size = 3, check_overlap = TRUE,data=plot1_fil %>% arrange(rank))+
+  geom_text(aes(votes/2, pos*2, label = round(votes*10,0)), family = "Futura Bk BT",  color = "#000000", size = 2.5, check_overlap = TRUE,data=plot1_fil,nudge_x = 1) +
+  geom_rect(aes(xmin = -25.5, ymin = pos*4 - 1.4,
+                xmax = -21, ymax = pos*4 + 1.4), fill = "#1aa6b7", color = "black",data=plot1_fil%>% filter(country!="Indian"))+
+   geom_rect(aes(xmin = -25.5, ymin = pos*4 - 1.4,
+                xmax = -21, ymax = pos*4 + 1.4), fill = "#ff414d", color = "black",data=plot1_fil%>% filter(country=="Indian"))+
+  geom_text(aes(-22.5, pos*4, label = lab), family = "Futura Md BT", fontface = "bold", color = "#FFFFFF", hjust = 0.7, size = 2.5, check_overlap = TRUE,data=plot1_fil)+
+  scale_x_continuous(breaks = seq(0, 90, 15), labels = seq(0, 1800, 300)) +
+  labs(title = "Top 10 Indian TV shows (imdb charts) ",
+       subtitle = "Since the min. number of votes criteria for IMDB top TV charts is just 5000 votes, it has become easier for new cult  web tv-series to slide their way into this list.  \n Indian TV Shows higlighted in  <span style='color:#f56a79;'>Red</span>, Other select top shows in <span style='color:#1aa6b7'>blue</span>, number of votes in '000  (x-axis)",
+       caption = "Image sourced from Google | Plot by Vaibhav Singh | Data scraped from https://www.imdb.com/chart/toptv") +
+  theme_minimal() +
+  geom_rect(data = data.frame(xmin = -0.67749179169983, xmax = 90.626169520258, 
+    ymin = -45.7541592823, ymax = -45.371255493817), mapping = aes(xmin = xmin, 
+    xmax = xmax, ymin = ymin, ymax = ymax), size = 0L, colour = "black", 
+    fill = "black", alpha = 0.7, inherit.aes = FALSE)+
+  #geom_hline(yintercept = -40)+
+  geom_label(data = data.frame(x = -23.1008388171154, y = 40.9323291838302, label = "Rank (Rating)"),
+mapping = aes(x = x, y = y, label = label),
+size = 2.81167842811678, label.padding = unit(0.25, "lines"),
+label.r = unit(0.15, "lines"),
+alpha = 1, inherit.aes = FALSE)+
+    geom_label(data = data.frame(x = -12.1008388171154, y = 40.9323291838302, label = "TV Show"),
+mapping = aes(x = x, y = y, label = label),
+size = 2.81167842811678, label.padding = unit(0.25, "lines"),
+label.r = unit(0.15, "lines"),
+alpha = 1, inherit.aes = FALSE)+
+  theme(plot.title = element_markdown(colour = "#005F85", family = "Cinzel", face = "bold", size = 32, hjust = 0.5, margin = margin(10,0,10,0),lineheight = 1.1),
+        plot.subtitle = element_markdown(colour = "#6F94AA", family = "Calibri", face = "bold", size = 13, hjust = 0.5, margin = margin(0,0,0,0)),
+        plot.caption = element_text(colour = "#626262", family = "Bellota Text", face = "bold", size = 10, hjust = 0.99, margin = margin(10,0,10,0)),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(family = "Oswald"),
+        axis.text.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        plot.margin = margin(0, 0, 0, 0),
+        plot.background = element_rect(color = "black", fill = "white", size = 3))+
+        #plot.background = element_rect(color = "#F1F5F7", fill = "#F1F5F7"))+
+        #plot.background = element_rect(colour = "gray20", fill=NA, size=3.5))+
+  draw_image(logo_file, x = 37, y = 38, scale = 20)+
+  draw_image(scam, x = 10, y = 28, scale = 18)+
+  draw_image(pitchers, x = 38, y = 28, scale = 20)+
+  draw_image(ram, x = 70, y = 28, scale = 20)+
+   draw_image(kota, x = 10, y = -35, scale = 18)+
+  draw_image(maha, x = 38, y = -35, scale = 20)+
+  draw_image(sara_1, x = 70, y = -35, scale = 20)
+p
+ggsave("imdb_finalplot.png", plot = last_plot(), dpi = 320, height = 220, width = 350, units = "mm") 
+
+```
