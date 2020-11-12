@@ -1,0 +1,86 @@
+---
+title: "Datasaurus Dataset - Tidytuesday (2020-10-13)"
+author: "Vaibhav Singhr"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.showtext = T, fig.retina = 1)
+```
+
+
+```{r}
+library(showtext)
+library(tidytuesdayR)
+library(tidyverse)
+library(tidyverse)
+library(ggextra)
+library(hrbrthemes)
+library(ggthemes)
+library(extrafont)
+library(janitor)
+library(snakecase)
+library(here)
+library(pdftools)
+        
+tuesdata <- tidytuesdayR::tt_load(2020, week = 42)
+
+datasaurus <- tuesdata$datasaurus
+
+font_add_google("Fira Mono")
+font_add_google("Special Elite")
+font_add_google("Josefin Slab")
+showtext_auto()
+
+datasaurus <- datasaurus %>% 
+  mutate(dataset=str_replace_all(dataset, "_", " ")) %>%
+  mutate(dataset=snakecase::to_upper_camel_case(dataset,sep_out = " "))  %>% 
+  mutate(dataset=case_when(dataset=="H Lines"~"Horizontal Lines",
+                           TRUE~ dataset))
+
+```
+
+
+```{r}
+
+
+plot <- datasaurus %>%
+  filter(dataset!="V Lines") %>% 
+  ggplot(aes(x = x, y = y)) +
+    geom_point(alpha = .5, color = "#85c1e9") +
+ facet_wrap(~dataset) +
+  geom_hline(yintercept = mean(datasaurus$x), color = "#A69C8B", linetype = "dashed") +
+  geom_vline(xintercept = mean(datasaurus$y), color = "#A69C8B", linetype = "dashed") +
+    annotate(geom = "text", label = "Mean of X", x = 93, y = 51, color = "grey30",
+             size = 3) +
+    annotate(geom = "text", label = "Mean of Y", x = 60, y = 0, color = "grey30",
+             size = 3) +
+   scale_x_continuous(limits = c(0,100)) +
+    scale_y_continuous(limits= c(0,100))+
+    labs(
+    title = "This is why Data Visualization is important!",
+    subtitle = "Below is case in point as to why just looking at descriptive statistics(i.e. mean, median, sd, correlation) is not enough\nEach of the 12 plots (including the dinosaur) have the same mean, standard deviation, median for both x & y (including correlation b/w x & y)",
+    caption = "Data from tidytuesday R4DS • Plot by Vaibhav Singh")+
+  theme_classic()+
+   theme(
+    plot.title.position = "plot",
+    plot.title = element_text(family = "Special Elite", size = 32, color="#074F71", face = "bold", hjust = 0, margin = margin(0, 0, 5, 0)),
+    plot.subtitle = element_text(family = "Playfair Display", size = 12, hjust = 0, margin = margin(0, 0, 15, 0), color = "grey30", lineheight = 0.9),
+    plot.caption = element_text(color = "grey40", family = "Cinzel", size = 9, vjust = 1, margin = margin(t = 10)),
+    plot.margin = margin(20, 20, 20, 20),
+    
+    plot.background = element_rect(fill = "#F7F6F3", color = "#f5f5f5"),
+    panel.spacing = unit(0.75, "cm"),
+    panel.border = element_rect(color = "black", fill = "transparent"),
+    strip.background = element_rect(fill = "black", color = "black"),
+    strip.text = element_text(color = "white", size = 12, family = "Fira Mono", face= "bold", margin = margin(5, 5, 5, 5)))+
+    theme(strip.background =element_rect(fill="#CB6015", color="black"),
+          plot.background = element_rect(color = "#DAAA00", fill = "#F7F6F3", size = 3))
+
+file_path <- here(2020, "plots")
+ggsave(paste0(file_path, "pdf"), plot, width = 12, height = 8, device = cairo_pdf)
+pdftools::pdf_convert(paste0(file_path, "pdf"), filenames = paste0(file_path, "png"), dpi = 300)
+ggsave(paste0(file_path, "pdf"), plot, width = 12, height = 8, device = cairo_pdf)
+    
+```
+
