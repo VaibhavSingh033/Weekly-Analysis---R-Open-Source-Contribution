@@ -1,0 +1,495 @@
+---
+title: "Creating coldplay songs timeline"
+date: 2020-12-12
+output: html_output
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytuesdayR)
+library(rvest)
+library(XML)
+library(magick)
+library(cowplot)
+library(ggtext)
+library(extrafont)
+library(showtext)
+library(Hmisc)
+library(stringr)
+library(here)
+library(janitor)
+library(cowplot)
+
+```
+
+# Scraping Coldplay songs from wikipedia
+```{r}
+url <- read_html("https://en.wikipedia.org/wiki/List_of_songs_recorded_by_Coldplay")
+
+tables <- url %>% html_table(fill = TRUE)
+
+cp <- tables[[3]] %>% 
+  as_tibble() %>% 
+  clean_names()
+```
+
+# Manipulating the data
+```{r}
+cp_plot <- cp %>% 
+ mutate(song=str_replace_all(song,"\"",""),
+        original_release=str_replace_all(original_release,"\"",""))  
+```
+
+# Plotting in disc format
+```{r}
+
+p1 <- cp_plot %>%
+  count(year,name="count") %>%
+  filter(count>2, year %in% c(2000,2002,2005,2008,2011,2014,2015,2019)) %>% 
+  #filter(count>7) %>% 
+  ggplot(aes(x=year,y=count))+
+    annotate(geom = "rect",
+           fill = "gray4",
+           ymin = -15,
+           ymax = 31,
+           xmin = 1998,
+           xmax = 2020)+
+   #scale for nr of tracks
+  geom_hline(yintercept = 1, color = "gray15", size = .6)+
+  geom_hline(yintercept = 10, color = "gray15", size = .6)+
+  geom_hline(yintercept = 20, color = "gray15", size = .6)+
+  
+  #point for number of tracks in data
+  geom_point(color = "#1db954", size = 2.5) +
+  geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2000),
+             color = "#eaaf2d", size = 2.5) + 
+    geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2002),
+             color = "#b2b1af", size = 2.5) +
+      geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2005),
+             color = "blue", size = 2.5)+
+        geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2008),
+             color = "#a43021", size = 2.5)+
+          geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2011),
+             color = "#d62965", size = 2.5)+
+   geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2014),
+             color = "#26809d", size = 2.5)+
+  geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2019),
+             color = "#7c4700", size = 2.5)+
+     geom_point(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2015),
+             color = "#56b45c", size = 2.5)+
+  #seperator for the years
+  geom_vline(xintercept = 1998,
+             color = "white", linetype = "dashed")+
+  
+  geom_vline(xintercept = 1998,
+             color = "white", linetype = "dashed")+
+  
+  #segment for lollipop look
+  geom_segment(aes(x = year,
+                   y =-3, 
+                   xend=  year, 
+                   yend=count),
+               color = "#1db954",
+               size = .8) +
+      geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2000),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#eaaf2d",
+                 size = .8)+
+        geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2002),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "white",#comehere
+                 size = .8)+
+      geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2005),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "blue",
+                 size = .8)+
+        geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2008),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#a43021",
+                 size = .8)+
+    geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2011),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#d62965",
+                 size = .8)+
+     geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2014),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#26809d",
+                 size = .8)+
+       geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2015),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#56b45c",
+                 size = .8)+
+    geom_segment(data=cp_plot %>%
+                      count(year,name="count") %>%
+                      filter(count>2,year==2019),
+                 aes(x = year,
+                 y =-3, 
+                 xend=  year, 
+                 yend=count),
+                 color = "#7c4700",
+                 size = .8)+
+  geom_vline(xintercept = 1998,
+             color = "white", linetype = "dashed")+
+  #inner green circle for the vinyl plate looks
+  annotate(geom = "rect",
+           fill = "#faf9f5",
+           ymin = -35,
+           ymax = -5,
+           xmin = 1998,
+           xmax = 2020)+
+  #annotated scale for nr of tracks
+  annotate(geom = "text", x = 2003.5,
+           y = 1.5, 
+           label = "5", 
+           color = "grey20",
+           angle = -0, 
+           size = 6,
+           family = "Verdana")+
+  annotate(geom = "text",
+           x = 2003.5, 
+           y = 20, 
+           label = "20", 
+           color = "grey20", 
+           angle = -0,
+           size = 6,
+           family = "Verdana")+
+  annotate(geom = "text",
+           x = 2003.5, 
+           y = 10,
+           label = "15", 
+           color = "grey20", 
+           angle = -0, 
+           size = 6,
+           family = "Verdana")+
+  
+    #annotated scale for the most important years
+  annotate(geom = "text",
+           x = 2000,
+           y = 22,
+           label = "2000\n\n\n",
+           color = "#e0e0e0", 
+           angle = -35,
+           size = 8,
+           family = "Verdana")+
+    annotate(geom = "text",
+           x = 2002,
+           y = 27,
+           label = "2002\n\n",
+           color = "#e0e0e0", 
+           angle = -60,
+           size = 8,
+           family = "Verdana")+
+  annotate(geom = "text", 
+           x = 2005.1,
+           y = 27, 
+           label = "\n\n2005",
+           color = "#e0e0e0", 
+           angle = 60,
+           size = 8,
+           family = "Verdana")+
+  annotate(geom = "text",
+           x = 2008, 
+           y = 32,
+           label = "\n2008", 
+           color = "#e0e0e0", 
+           angle = +15,
+           size = 8,
+           family = "Verdana")+
+  annotate(geom = "text", 
+           x = 2011, 
+           y = 27, 
+           label = "\n\n2011",
+           color = "#e0e0e0",
+           angle = -30, 
+           size = 8, 
+           family = "Verdana")+
+  annotate(geom = "text", x = 2013.7,
+           y = 34, 
+           label = "2014\n", 
+           color = "#e0e0e0",
+           angle = +100, 
+           size = 8,
+           family = "Verdana")+
+    annotate(geom = "text", x = 2015,
+           y = 34, 
+           label = "2015\n", 
+           color = "#e0e0e0",
+           angle = +80, 
+           size = 8,
+           family = "Verdana")+
+    annotate(geom = "text",
+           x = 2018.9, 
+           y = 32,
+           label = "2019\n", 
+           color = "#e0e0e0", 
+           angle = +10,
+           size = 8,
+           family = "Verdana")+
+  #annotate scale title for nr of tracks
+  annotate(geom = "text",
+           x = 2003.5,
+           y = 34, 
+           label = "\n\nNumber of \nTracks", 
+           color = "grey20", 
+           angle = 90, 
+           size = 5, 
+           family = "Verdana")+
+  #title, subtitle, caption
+  ggtitle("")+
+   labs(subtitle = "\nStudio Album releases \n and top songs Through Time\n")+
+
+  #scale breaks just for transformation, we don't see it on plot
+  # scale_y_continuous(limits = c(-40, 34)), expand = c(0,0), breaks = c(20,
+  #                                                                      40,
+  #                                                                      60,
+  #                                                                      80,
+  #                                                                      100,
+  #                                                                      120))+
+  # scale_x_continuous(expand = c(0,0))+
+  coord_polar() +
+  theme(panel.background = element_rect(fill = "white", color = "transparent"),
+        panel.grid.major.x  = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        plot.background = element_rect(color = "white"),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major.y  = element_line(color = "white"),
+        axis.title = element_blank(),
+        text = element_text(color = "black"),
+        plot.title = element_text(size = 50, 
+                                  hjust = .5, 
+                                  family = "Bell MT", 
+                                  color = "gray8"),
+        plot.subtitle = element_text(size = 20, 
+                                     hjust = .5, 
+                                     family = "Bell MT", 
+                                     color = "gray8"),
+        plot.caption = element_text(size = 10,
+                                    hjust = .5, 
+                                    family = "Bell MT", 
+                                    color = "gray8"),
+        plot.margin = margin(50,0,-50,0)) 
+
+  
+para <- here::here("images/coldplay/parachutes.png")
+head <- here::here("images/coldplay/A_Rush_of_Blood_to_the_Head.jpg")
+x <- here::here("images/coldplay/x&y.png")
+viva <- here::here("images/coldplay/viva_2.jpg")
+my <- here::here("images/coldplay/Myloxyloto.jpg")
+ghost <- here::here("images/coldplay/ghost.jpg")
+dreams <- here::here("images/coldplay/dreams.jpg")
+life <- here::here("images/coldplay/life.jpg")
+cp <- here::here("images/coldplay/coldplay.jpg")
+cp2 <- here::here("images/coldplay/cp_3.jpg")
+ori <- here::here("images/coldplay/original.png")
+
+
+p2 <- ggdraw(add_sub(p1,label = "Parachutes (1st Studio album)\nRelease Date: 10th July 2000\nTop Song: Yellow",
+               fontfamily = "Playfair Display",
+               x = 1.1, y=17.8,size = 14,
+              vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+              color="#d69517",
+               hjust = 0,
+               vjust = 6.5))
+
+p3 <- ggdraw(add_sub(p2,label = "A Rush of Blood to the head\nRelease Date: 26th Aug 2002\nTop Song: The Scientist",
+               fontfamily = "Playfair Display",
+               x = 0.78, y=7.0,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="grey20",
+               hjust = 0,
+               vjust = 0))
+
+p4 <- ggdraw(add_sub(p3,label = "X&Y (3rd studio album)\nRelease Date: 6th June 2005\nTop Song: Fix You",
+               fontfamily = "Playfair Display",
+               x = 0.8, y=3.3,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#000052",
+               hjust = 0,
+               vjust = 0))
+
+ p5 <- ggdraw(add_sub(p4,label = "Viva La Vida\nRelease Date: 12th June 2008\nTop Song: Viva La Vida",
+               fontfamily = "Playfair Display",
+               x = 0.66, y=1.45,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#a43021",
+               hjust = 0,
+               vjust = -0.1))
+ 
+ 
+p6 <- ggdraw(add_sub(p5,label = "Mylo Xyloto\nRelease Date: 19th Oct 2011\nTop Song: Paradise",
+               fontfamily = "Playfair Display",
+               x = 0.34, y=2.25,size = 14,
+              vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#d62965",
+               hjust = 0,
+               vjust = 0))
+
+ 
+p7 <- ggdraw(add_sub(p6,label = "Ghost Stories (6th Studio Album) \nRelease Date: 16th May 2014\nTop Song: Sky full of stars",
+               fontfamily = "Playfair Display",
+               x = 0.05, y=4.8,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#26809d",
+               hjust = 0,
+               vjust = -0.5))
+
+p8 <- ggdraw(add_sub(p7,label = "Head full of dreams\nRelease Date: 4th Dec 2015\nTop Song: Hymn for the Weekend",
+               fontfamily = "Playfair Display",
+               x = 0.04, y=11.0,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#56b45c",
+               hjust = 0,
+               vjust = 0))
+
+
+p9 <- ggdraw(add_sub(p8,label = "Everyday Life (8th album) \nRelease Date: 22nd Nov 2019\nTop Song: Trouble in town",
+               fontfamily = "Playfair Display",
+               x = 0.01, y=17.0,size = 14,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="#7c4700",
+               hjust = 0,
+               vjust = 0))
+
+
+p10 <- ggdraw(add_sub(p9,label = "Discography",
+               fontfamily = "Kaushan Script",
+               x = 0.1, y=0.5,size = 22,
+              # fontface = "bold",
+               color="red",
+              # angle=20,
+               hjust = -2.9,
+               vjust = -29))
+
+p11 <- ggdraw(add_sub(p10,label = "Coldplay's 8 studio album releases & top songs over time.",
+               fontfamily = "Kaushan Script",
+               x = 0.1, y=1,size = 22,
+              # fontface = "bold",
+               color="#45aade",
+              # angle=20,
+               hjust = 0,
+               vjust = 0))
+
+p12 <- ggdraw()+
+  draw_plot(p10)+
+  draw_image(para, x = 0.23, y = 0.275, scale = .09)+
+  draw_line(x = c(0.64,0.69), y = c(0.74,0.76),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(head, x = 0.37, y = 0.18, scale = .09)+
+  draw_line(x = c(0.73,0.83), y = c(0.64,0.67),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(x, x = 0.37, y = -0.005, scale = .09)+
+  draw_line(x = c(0.71,0.82), y = c(0.48,0.5),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(viva, x = 0.1, y = -0.228, scale = .1)+
+  draw_line(x = c(0.57,0.60), y = c(0.39,0.33),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(my, x = -0.22, y = -0.23, scale = .11)+
+  draw_line(x = c(0.37,0.33), y = c(0.39,0.32),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(ghost, x = -0.4, y = -0.05, scale = .1)+
+  draw_line(x = c(0.17,0.28), y = c(0.46,0.515),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(dreams, x = -0.4, y = +0.15, scale = .11)+
+  draw_line(x = c(0.17,0.27), y = c(0.64,0.61),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(life, x = -0.24, y = +0.265, scale = .11)+
+  draw_line(x = c(0.42,0.33), y = c(0.76,0.78),
+            color="#e0e0e0",
+            size=1,
+            alpha=1,
+            linetype="dotted")+
+  draw_image(cp, x = 0, y = 0.44, scale = 0.37)+
+  draw_image(ori, x = 0, y = 0.08, scale = 0.14)+
+  theme(plot.background = element_rect(color = "#e0e0e0"))
+
+
+file_path <- here(2020, "plots")
+ggsave(paste0(file_path,"coldplay", "pdf"), p12, width = 13, height = 13, device = cairo_pdf)
+pdftools::pdf_convert(paste0(file_path,"coldplay", "pdf"), filenames = paste0(file_path,"coldplay", "png"), dpi = 300)
+ggsave(paste0(file_path,"coldplay", "pdf"), p12, width = 13, height = 13, device = cairo_pdf)
+
+```
+
