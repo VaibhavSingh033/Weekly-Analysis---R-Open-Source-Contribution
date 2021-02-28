@@ -1,0 +1,320 @@
+---
+title: "Personalities Traits"
+author: "Vaibhav Singh"
+date: "2/15/2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Reading Data}
+library(gt)
+library(tidyverse)
+library(haven)
+library(vroom)
+library(ggtext)
+library(plotly)
+library(here)
+library(purrr)
+library(pdftools)
+library(snakecase)
+library(extrafont)
+library(extrafontdb)
+library(cowplot)
+
+
+df <- vroom::vroom("https://raw.githubusercontent.com/tacookson/data/master/fictional-character-personalities/personalities.txt")
+
+```
+
+```{r Exploring the data}
+
+head(df)
+
+# How many characters are from the office ?
+
+df %>% 
+  distinct(fictional_work, character_name) %>% 
+  filter(fictional_work=="The Office")
+
+# Nice Almost all except Creed & Toby, what a pity ! But this will work
+
+# Lets see which TV show has maximum characters here
+
+df %>% 
+  distinct(fictional_work,character_name) %>% 
+  count(fictional_work) %>% 
+  arrange(desc(n))
+
+# No Surprises here GOT, Harry Potter features at the top, followed by others at 15 (including MCU & Mad Men among others)
+
+# How many characteristics are per characters at average vs min/max.
+
+df %>% 
+  group_by(character_name) %>% 
+  summarise(count=dplyr::n()) %>% 
+  arrange(desc(count))
+
+
+# Are the spectrum same everytime ?
+
+df %>% 
+  distinct(spectrum, spectrum_high, spectrum_low)
+
+# Yes !
+
+# Is there any characteristics in both spectrum
+
+equal <- function(.x) 
+  {
+  return(.x %in% (df %>% distinct(spectrum_high)))
+  }
+
+map(.x = df %>% distinct(spectrum_low), 
+    .f = equal)
+
+#No none of the characteristic is present in both the spectrum pool
+
+```
+
+# Figuring out top shows first 
+
+```{r}
+df %>% 
+  group_by(fictional_work) %>% 
+  summarise(m=mean(ratings)) %>% 
+  arrange(desc(m))
+
+top_shows <- c("The Lion King","Friends","Pirates of the Caribbean","Sherlock","Fight Club",
+               "The Office","Marvel Cinematic Universe","Brooklyn Nine-Nine","Game of Thrones","Harry Potter")
+
+traits <- c("intellectual","modest","arrogant","cruel","sarcastic",	
+"chatty","feminist")
+
+
+status_levels <- c("Complete", "On Target", "At Risk", "Critical")
+status_colors <- c("#0070C0", "#00B050", "#FFC000", "#C00000","grey","orange","blue","violet","red")
+
+positions <- c(0.5, -0.5, 1.0, -1.0, 1.5, -1.5)
+directions <- c(1, -1)
+
+text <- tibble(
+  label = c(
+    "Some text **in bold.**",
+    "Linebreaks<br>Linebreaks<br>Linebreaks",
+    "*x*<sup>2</sup> + 5*x* + *C*<sub>*i*</sub>",
+    "Some <span style='color:blue'>blue text **in bold.**</span><br>And *italics text.*<br>
+    And some <span style='font-size:18pt; color:black'>large</span> text."
+  ),
+  x = c(.2, .1, .5, .9),
+  y = c(.8, .4, .1, .5),
+  hjust = c(0.5, 0, 0, 1),
+  vjust = c(0.5, 1, 0, 0.5),
+  angle = c(0, 0, 45, -45),
+  color = c("black", "blue", "black", "red"),
+  fill = c("cornsilk", "white", "lightblue1", "white")
+)
+
+final_df <- df %>% 
+  filter(fictional_work %in% top_shows,
+         spectrum_low %in% traits,
+         fictional_work=="The Office") %>% 
+        # spectrum_low=="modest")  %>% 
+  group_by(fictional_work, character_name,spectrum_high, spectrum_low) %>% 
+  summarise(points=mean(mean),
+            rating=mean(ratings)) %>% 
+  ungroup() %>% 
+  extract(character_name, c("FirstName", "LastName"), "([^ ]+) (.*)",remove = FALSE) %>% 
+  mutate(FirstName=case_when(is.na(FirstName)~character_name,
+                             str_detect(character_name,"Erin")~"Erin",
+                             TRUE~FirstName)) %>% 
+   mutate(y = as.integer(factor(spectrum_high)),
+          spectrum_high=to_sentence_case(spectrum_high),
+          spectrum_low=to_sentence_case(spectrum_low),
+          points=case_when(spectrum_high=="Sexist"~-points,
+                           spectrum_high=="Flamboyant"~-points,
+                           TRUE ~ points)) %>% 
+  ungroup() %>% 
+  group_by(spectrum_high) %>% 
+  arrange(spectrum_high,desc(points)) %>% 
+  mutate(num=rank(points,ties.method = "first")) %>% 
+  mutate(color=case_when(num %in% c(15)& points>10~"#fab8af",
+                         num %in% c(13,14)& points>10~"#ffdbd6",
+                         num %in% c(11,12)& points>10~"#ede5e4",
+                      #   num %in% c(10)& points>10~"#ede5e4",
+         num %in% c(1)& points<10~"#a2b9f5",
+         num %in% c(2,3)& points<10~"#bfcdf2",
+         num %in% c(4,5)& points<10~"#ced7ed",
+         #num %in% c(6)& points<10~"#c5cad6",
+         TRUE ~ "#ded9d9"),
+         size=case_when(num %in% c(15,1)~4.5,
+                        num %in% c(14,13,2,2)~3.5,
+                        TRUE ~ 3)) 
+
+angela <- ("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/angela.png")
+pam<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/pam.png")
+ryan<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/ryan.png")
+michael<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/michael.png")
+stanley<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/stanley.png")
+jan<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/jan.png")
+erin<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/erin.png")
+kelly<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/kelly.png")
+robert<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/robert.png")
+meredith<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/meredith.png")
+jim <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/jim.png")
+dwight <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/dwight.png")
+kevin <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/kevin.png")
+
+office <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/office_loo.jpg")
+logo <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/logo.jpg")
+
+one <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/first.png")
+two<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/second.png")
+thr<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/third.png")
+fou<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/fourth.png")
+fiv<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/fifth.png")
+six<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/sixth.png")
+sev<- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/seventh.png")
+heart <- c("C:/Users/vibsi/Documents/TidyTuesday/2020/Office image/heart.png")
+
+
+
+```
+
+```{r}
+
+
+
+labels <-  data.frame(
+    x = c( rep(-55,7),rep(55,7)),
+    y = c( 1, 2,3,4,5,6,7, 1, 2,3,4,5,6,7),
+    text = c("Flamboyant","Sarcastic","Arrogant",
+             "Cruel","Intellectual","Chatty","Sexist","Modest",
+             "Genuine","Humble","Kind",
+             "Physical","Reserved","Feminist"),
+    color=c("#63ace5", "#63ace5", "#63ace5", "#63ace5", "#63ace5", "#63ace5", "#63ace5", "#fe8a71", "#fe8a71", "#fe8a71", "#fe8a71", "#fe8a71", "#fe8a71", "#fe8a71"))
+
+timeline <- data.frame(
+  x = c(-50,-25,0,25,50,0,0),
+  y =  c(0.1,0.1,0.1,0.1,0.1,0.5,-0.1),
+  text =  c(seq(-50,50,25),"A high score in mean signifies that a character tends more towards this trait","Mean Score"),
+  color=c(rep("grey90",5),"#787272","#ded9d9")
+)
+
+final_df$color<- factor(final_df$color, levels = as.character(final_df$color))
+
+plot <- final_df %>% 
+  ggplot(aes(x=points, y=y,col=as.factor(FirstName),label=FirstName))+
+  geom_segment(aes(x=-50,xend=-50,y=0.28,yend=Inf),linetype="dotted",color="grey90")+
+  geom_segment(aes(x=-25,xend=-25,y=0.28,yend=Inf),linetype="dotted",color="grey90")+
+  geom_segment(aes(x=0,xend=0,y=0.28,yend=Inf),linetype="dotted",color="grey90")+
+  geom_segment(aes(x=25,xend=25,y=0.28,yend=Inf),linetype="dotted",color="grey90")+
+  geom_segment(aes(x=50,xend=50,y=0.28,yend=Inf),linetype="dotted",color="grey90")+
+  #geom_vline(xintercept = c(-25,0,25,50),linetype="dotted",color="grey90")+
+  geom_point(color=final_df$color)+
+  #scale_color_manual(values=final_df$color)+
+ # geom_text(aes(label=character_name),check_overlap = TRUE)+
+  theme_classic()+
+  geom_text_repel(min.segment.length = 0.9,
+                  size=final_df$size,
+                  color=final_df$color,
+                  box.padding = 0.5,
+                  max.overlaps = 8,
+                  point.padding = 0.1,
+                  nudge_x = .15,
+                  nudge_y = .01,
+                  segment.curvature = -1e-20,
+                  arrow = arrow(length = unit(0.015, "npc")))+
+              #     xlim = c(NA, Inf), ylim = c(-Inf, Inf)))+
+  # geom_segment(data=df, aes(y=positions,yend=0,xend=points), color='black', size=0.2)+
+  geom_segment(aes(x=0,xend=50,y=0.28,yend=0.28),arrow = arrow(length = unit(0.1, "inches")),color="#fec8c1",linetype="twodash")+
+  geom_segment(aes(x=0,xend=-50,y=0.28,yend=0.28),arrow = arrow(length = unit(0.1, "inches")),color="#a2b9f5",linetype="twodash")+
+  geom_hline(yintercept=c(1:7), color = "black", size=0.2, linetype="dotted")+
+  theme(axis.line.y=element_blank(),
+                 axis.text.y=element_blank(),
+                 axis.title.x=element_blank(),
+                 axis.title.y=element_blank(),
+                 axis.ticks.y=element_blank(),
+                 axis.text.x =element_blank(),
+                 axis.ticks.x =element_blank(),
+                 axis.line.x =element_blank(),
+                 legend.position = "none"
+                )+
+  geom_label(
+    data=labels %>% mutate(text=to_sentence_case(text)),
+    aes(label=text,x=x, y=y),
+    #label.padding = unit(0.2, "lines"), # Rectangle size around label
+    label.size = 0.35,
+    color = "white",
+    fill=labels$color
+  )+
+  geom_text(
+    data=timeline,
+    aes(label=text,x=x, y=y),
+    color=timeline$color
+  )+
+    theme(plot.title = element_text(size =18,face="bold",
+                                    family="Special Elite",
+                                    color="black",hjust=.43,vjust=-0.3))+
+   labs(title="7 Personality trait spectrum of characters from \nDunder Mifflin Paper Company.")
+
+
+plot_1 <- ggdraw()+
+  draw_plot(plot)+
+  draw_image(angela, x = 0.37, y = -0.245, scale = 0.10)+
+    draw_image(erin, x = 0.34, y = -0.08, scale = 0.10)+
+    draw_image(meredith, x = 0.34, y = 0.17, scale = 0.10)+
+    draw_image(stanley, x = 0.38, y = 0.31, scale = 0.10)+
+    draw_image(pam, x = 0.31, y = 0.42, scale = 0.11)+
+    draw_image(kelly, x = -0.38, y = -0.22, scale = 0.10)+
+    draw_image(ryan, x = -0.38, y = 0, scale = 0.10)+
+    draw_image(jan, x = -0.285, y = 0.07, scale = 0.10)+
+    draw_image(robert, x = -0.32, y = 0.41, scale = 0.10)+
+    draw_image(michael, x = -0.39, y = 0.31, scale = 0.11)+
+    draw_image(dwight, x = -0.037, y = -0.15, scale = 0.11)+
+    draw_image(office, x = 0.45, y = -0.48, scale = 0.10)+
+    draw_image(jim, x = 0.229, y = 0.43, scale = 0.11)+
+    draw_image(kevin, x = 0.205, y = 0.225, scale = 0.11)+
+    draw_image(one, x = -0.445, y = 0.31, scale = 0.05)+
+    draw_image(two, x = -0.445, y = 0.196, scale = 0.05)+
+    draw_image(thr, x = -0.445, y = 0.082, scale = 0.05)+
+    draw_image(fou, x = -0.445, y = -0.03, scale = 0.05)+
+    draw_image(fiv, x = -0.445, y = -0.145, scale = 0.05)+
+    draw_image(six, x = -0.445, y = -0.255, scale = 0.05)+
+    draw_image(sev, x = -0.445, y = -0.37, scale = 0.05)+
+     draw_image(one, x = 0.45, y = 0.31, scale = 0.05)+
+    draw_image(two, x = 0.45, y = 0.196, scale = 0.05)+
+    draw_image(thr, x = 0.45, y = 0.082, scale = 0.05)+
+    draw_image(fou, x = 0.45, y = -0.03, scale = 0.05)+
+    draw_image(fiv, x = 0.45, y = -0.145, scale = 0.05)+
+    draw_image(six, x = 0.45, y = -0.255, scale = 0.05)+
+    draw_image(sev, x = 0.45, y = -0.37, scale = 0.05)+
+   draw_image(logo, x = -0.43, y = 0.44, scale = 0.13)+
+   draw_image(heart, x = 0.27, y = 0.43, scale = 0.07)
+  
+  
+plot_2 <- ggdraw(add_sub(plot_1,label = "Data from https://openpsychometrics.org/tests/characters/ | Plot created in Rstudio by Vaibhav Singh",
+               fontfamily = "Playfair Display",
+               x = 0.02, y=1,size = 8,
+               vpadding = grid::unit(0, "lines"),
+              #  fontface = "italic",
+               color="grey80",
+               hjust = 0,
+               vjust = 0))
+
+
+
+
+file_path <- here(2020, "plots")
+ggsave(paste0(file_path,"personality", "pdf"), plot_2, width = 13, height = 6, device = cairo_pdf)
+pdftools::pdf_convert(paste0(file_path,"personality", "pdf"), filenames = paste0(file_path,"personality", "png"), dpi = 300)
+```
+
+```{r}
+labels=c("Modest","XYZ")
+```
+
